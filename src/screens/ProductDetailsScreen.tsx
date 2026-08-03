@@ -1,0 +1,550 @@
+import React, { useState } from 'react';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  Image,
+  ScrollView,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Dimensions,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import Header from '../components/Header';
+import Button from '../components/Button';
+import { COLORS, SPACING, RADIUS, STATUSBAR_HEIGHT, ColorScheme } from '../constants/theme';
+
+
+interface ProductDetails {
+  id: string;
+  category: string;
+  title: string;
+  price: number;
+  rating: number;
+  reviewCount: number;
+  description: string;
+  images: string[];
+}
+
+interface RelatedProduct {
+  id: string;
+  title: string;
+  price: number;
+  imageUri: string;
+}
+
+interface ProductDetailsScreenProps {
+  product?: ProductDetails;
+  onBackPress: () => void;
+  onSharePress?: () => void;
+  onBellPress?: () => void;
+  onAddToCart?: () => void;
+  onBuyNow?: () => void;
+  onRelatedProductPress?: (productId: string) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  colors?: ColorScheme;
+}
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+const DEFAULT_PRODUCT: ProductDetails = {
+  id: 'na1',
+  category: 'PERFORMANCE SERIES',
+  title: 'Apex Velocity Runner',
+  price: 189,
+  rating: 4.5,
+  reviewCount: 1248,
+  description:
+    'Engineered for elite marathoners and daily commuters alike, the Apex Velocity Runner redefines high-performance footwear. Featuring our proprietary carbon-infused ReactX foam and a dual-layer breathable mesh upper, these shoes provide unparalleled energy return and a glove-like fit. The aerodynamic silhouette minimizes drag while the reinforced heel counter ensures stability at any pace.',
+  images: [
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuAGJyGhgtVLj2BaO3CqVzgaayJtFGuaF6tD6r1rjrYhUPxZR3Svwqd-8wnAOKbWp582YrO2JVr9Byx138UEmxXhc8r7AbufEnE13n3D_arbwa8piaYwSgsu-22l8Sh316U_JnzJZkKqJcDGEHxa4LjDRWznYAOeSHdw1SG6YtyqcLSYx9rF58FbUS9NRq13w9m_cOffDAi7WWt7mn35AQTH0sQUDypIhJxZxbw71QZSYHE_kzPMC3vC6UzXBmOm6KbS5w4QSJvgZjM',
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuALPIEZIxJh4cmmM2VYF00wgMFJ_k-dO5Y3pqQYXH4uuQOuErpApsITRay5zXslpbONxs14C4sRPkHgLxQ9QC09vhrr3e0nuhhfZXgtqo0PUNk0FLFEGOQFwzPqCsBfADl_f5njdUVHBtwG_bklKEt8TObcMrSbO3tIP-Z6aAn_uIEMLCjqfyeyQRC6ITjAFUIqeq_XlFzcmvJfENGMsDnNTsI1F7r17P1CBjQfhmS0kPs0RdvzXtU39uO6vJAmJkhaL-Jg7JQstCo',
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuC_FxDYsHJTDGiZXk0sXbjSSXmr5OBQj72l_tY524VZgKJ0rATHjrbru-qjycmvlyWupCoazZX9Yjfctqr-2u5932Ghb1V81HIRveyXT-uTGZC9EW08PaB27dLMQQlO_jFBroFoh-0Egm3KOd-DvucpVuArSbtXraZ_Hv9cx78PPSp4ZAatjv1-HBEbQAJIfnv5oHsxYQN773WDiP2vnuvTs-HyD1ReT-ZiGAszzdfFhVgN3f59sx2lK915zccPTCsyMc0vpfEmo0A',
+  ],
+};
+
+const COLORS_LIST = ['#2563EB', '#131B2E', '#C3C6D7', '#E11D48'];
+const SIZES = ['8', '9', '10', '11', '12'];
+
+const RELATED_PRODUCTS: RelatedProduct[] = [
+  {
+    id: 'rp1',
+    title: 'Apex Stealth Pro',
+    price: 165,
+    imageUri:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuDoP6WQaQ2Kkll93fXEVOdv_viMlqbvmF5JY1IuNFr8_1iEPa3O8w2U2PjgRCvfkn7O5hO0jWlPPwktBWYXh6Dq1MmhM6OGUA3McBe3wz1hD8xGb1vQn8g01Iit1B1pzb7MpFQWLHMHMBDA7gT726Of0xScU83Z9xv2bid6bgyI0rEVoQ37xoAFJdc4VZ8kVWM56R5ohrAUVVDi0jDAof-rfbbC8LOf030KxyZNX1RI-iezR1iFCDRiS9wWY6G2-hPfamClLwHUlMY',
+  },
+  {
+    id: 'rp2',
+    title: 'Apex Nitro Core',
+    price: 140,
+    imageUri:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuAf2r4EOXemXlE1D1RLpfT7-kMtmSvD-bDvIoXwQ0Q1vCIjyGU0UwfSXzsNJPa6Z1IM0tXafw9bgQxVFcXzXLCmHJM7U6rEUv7bg8SOPnRZwyuYLIUxWP4SyhD0tUfUXhuEMj4OdCWuZdOc50OepHSYgEtn9efganlDXADCclGrIghjcpuSGBkuvQRTts6Ar74C50UkVtw81iuKQeWSjf_CkNwMz1EUsJrQ8b-Q_MYuC0dK_KQxzER3rk4a_FoyVo9sk-9VUYJ3Y54',
+  },
+  {
+    id: 'rp3',
+    title: 'Apex Cloud Walker',
+    price: 210,
+    imageUri:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuBLt_RXojfO1Suo8oqOOJNwXES00DwRL0NTG2x2wBhyD0eUrJZBupf3P7z5vh7AuIOZI1Oi2MbaHbQWHv9uBnYB5bJpsXmfZ7WRTklp7oPFfif_EPWZF_gYc1KUBhfdYsNazBzCZp8lkSVndelgWAIewzs6_nO110Yi-uIdP2RTaWzL95cmmIE18TdZ7bjPn0Ar6thguMw1ijaYMq1Gvi4yNX7b0ssTpothCG46mzvgtfR-tX8FR8yqzaIiMI3mIQA9h-iwpZuiIfw',
+  },
+];
+
+
+const ProductDetailsScreen = ({
+  product = DEFAULT_PRODUCT,
+  onBackPress,
+  onSharePress,
+  onBellPress,
+  onAddToCart,
+  onBuyNow,
+  onRelatedProductPress,
+  isFavorite = false,
+  onToggleFavorite,
+  colors = COLORS,
+}: ProductDetailsScreenProps) => {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(COLORS_LIST[0]);
+  const [selectedSize, setSelectedSize] = useState(SIZES[0]);
+  const [quantity, setQuantity] = useState(1);
+
+  const decreaseQuantity = () => {
+    if (quantity > 1) setQuantity(quantity - 1);
+  };
+
+  const increaseQuantity = () => setQuantity(quantity + 1);
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header
+        title="Apex Premium"
+        showBackButton
+        onBackPress={onBackPress}
+        onSharePress={onSharePress}
+        onBellPress={onBellPress}
+        colors={colors}
+      />
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* IMAGE GALLERY */}
+        <View style={styles.gallery}>
+          <FlatList
+            data={product.images}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(uri, index) => `${product.id}-${index}`}
+            onMomentumScrollEnd={(event) => {
+              const index = Math.round(
+                event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width,
+              );
+              setActiveImageIndex(index);
+            }}
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={styles.galleryImage} />
+            )}
+          />
+
+          <View style={styles.dotsRow}>
+            {product.images.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  { backgroundColor: colors.outlineVariant },
+                  index === activeImageIndex && { backgroundColor: colors.primary },
+                ]}
+              />
+            ))}
+          </View>
+
+          <Pressable
+            style={[styles.favoriteButton, { backgroundColor: colors.surfaceContainerLowest }]}
+            onPress={onToggleFavorite}
+          >
+            <Icon
+              name={isFavorite ? 'favorite' : 'favorite-border'}
+              size={22}
+              color={isFavorite ? colors.tertiary : colors.onSurfaceVariant}
+            />
+          </Pressable>
+        </View>
+
+        {/* PRODUCT INFO */}
+        <View style={styles.content}>
+          <View style={styles.titleRow}>
+            <View style={styles.titleColumn}>
+              <Text style={[styles.category, { color: colors.primary }]}>{product.category}</Text>
+              <Text style={[styles.title, { color: colors.onSurface }]}>{product.title}</Text>
+            </View>
+            <Text style={[styles.price, { color: colors.primary }]}>
+              ${product.price.toFixed(2)}
+            </Text>
+          </View>
+
+          {/* Rating */}
+          <View style={styles.ratingRow}>
+            <StarRating rating={product.rating} colors={colors} />
+            <Text style={[styles.reviewCount, { color: colors.onSurfaceVariant }]}>
+              ({product.reviewCount.toLocaleString()} Reviews)
+            </Text>
+          </View>
+
+          {/* Description */}
+          <View style={styles.descriptionBlock}>
+            <Text
+              style={[styles.description, { color: colors.onSurfaceVariant }]}
+              numberOfLines={isDescriptionExpanded ? undefined : 3}
+            >
+              {product.description}
+            </Text>
+            <Pressable onPress={() => setIsDescriptionExpanded(!isDescriptionExpanded)}>
+              <Text style={[styles.readMore, { color: colors.primary }]}>
+                {isDescriptionExpanded ? 'Read Less' : 'Read More'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Color Selection */}
+          <View style={styles.selectionSection}>
+            <Text style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>COLOR</Text>
+            <View style={styles.colorRow}>
+              {COLORS_LIST.map((color) => (
+                <Pressable
+                  key={color}
+                  onPress={() => setSelectedColor(color)}
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: color },
+                    selectedColor === color && { borderWidth: 2, borderColor: colors.primary },
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Size Selection */}
+          <View style={styles.selectionSection}>
+            <View style={styles.sizeHeaderRow}>
+              <Text style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                SIZE (US)
+              </Text>
+              <Pressable>
+                <Text style={[styles.sizeGuideLink, { color: colors.primary }]}>Size Guide</Text>
+              </Pressable>
+            </View>
+            <View style={styles.sizeRow}>
+              {SIZES.map((size) => {
+                const isSelected = selectedSize === size;
+                return (
+                  <Pressable
+                    key={size}
+                    onPress={() => setSelectedSize(size)}
+                    style={[
+                      styles.sizeChip,
+                      { borderColor: colors.outlineVariant },
+                      isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sizeChipText,
+                        { color: isSelected ? colors.white : colors.onSurface },
+                      ]}
+                    >
+                      {size}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Quantity Selector */}
+          <View style={styles.quantitySection}>
+            <Text style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>QUANTITY</Text>
+            <View style={[styles.quantityStepper, { backgroundColor: colors.surfaceContainer }]}>
+              <Pressable style={styles.stepperButton} onPress={decreaseQuantity}>
+                <Icon name="remove" size={18} color={colors.onSurface} />
+              </Pressable>
+              <Text style={[styles.quantityValue, { color: colors.onSurface }]}>{quantity}</Text>
+              <Pressable style={styles.stepperButton} onPress={increaseQuantity}>
+                <Icon name="add" size={18} color={colors.onSurface} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* Related Products */}
+        <View style={styles.relatedSection}>
+          <Text style={[styles.relatedTitle, { color: colors.onSurface }]}>Related Products</Text>
+          <FlatList
+            data={RELATED_PRODUCTS}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            ItemSeparatorComponent={() => <View style={{ width: SPACING.gutter }} />}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.relatedCard, { backgroundColor: colors.surfaceContainerLow }]}
+                onPress={() => onRelatedProductPress?.(item.id)}
+              >
+                <Image source={{ uri: item.imageUri }} style={styles.relatedImage} />
+                <View style={styles.relatedContent}>
+                  <Text
+                    style={[styles.relatedName, { color: colors.onSurface }]}
+                    numberOfLines={1}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.relatedPrice, { color: colors.primary }]}>
+                    ${item.price.toFixed(2)}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          />
+        </View>
+      </ScrollView>
+
+      {/* Sticky Footer */}
+      <View style={[styles.footer, { backgroundColor: colors.surfaceContainerLowest, borderTopColor: colors.outlineVariant }]}>
+        <View style={styles.footerButton}>
+          <Button label="Add to Cart" onPress={() => onAddToCart?.()} variant="outline" colors={colors} />
+        </View>
+        <View style={styles.footerButton}>
+          <Button label="Buy Now" onPress={() => onBuyNow?.()} variant="primary" colors={colors} />
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+};
+
+
+const StarRating = ({ rating, colors }: { rating: number; colors: ColorScheme }) => {
+  const fullStars = Math.floor(rating);
+  const hasHalfStar = rating - fullStars >= 0.5;
+
+  const stars = [1, 2, 3, 4, 5].map((position) => {
+    if (position <= fullStars) return 'star';
+    if (position === fullStars + 1 && hasHalfStar) return 'star-half';
+    return 'star-border';
+  });
+
+  return (
+    <View style={styles.starRow}>
+      {stars.map((iconName, index) => (
+        <Icon key={index} name={iconName} size={16} color={colors.secondaryContainer} />
+      ))}
+    </View>
+  );
+};
+
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: STATUSBAR_HEIGHT,
+  },
+  gallery: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    position: 'relative',
+    backgroundColor: COLORS.surfaceContainerLowest,
+  },
+  galleryImage: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  dotsRow: {
+    position: 'absolute',
+    bottom: SPACING.lg,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: SPACING.lg,
+    right: SPACING.lg,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+  },
+  content: {
+    paddingHorizontal: SPACING.marginMobile,
+    marginTop: SPACING.lg,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  titleColumn: {
+    flex: 1,
+    marginRight: SPACING.sm,
+  },
+  category: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  price: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+  },
+  starRow: {
+    flexDirection: 'row',
+  },
+  reviewCount: {
+    fontSize: 12, 
+  },
+  descriptionBlock: {
+    marginTop: SPACING.lg,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  readMore: {
+    marginTop: SPACING.xs,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  selectionSection: {
+    marginTop: SPACING.xl,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: SPACING.md,
+  },
+  colorRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  colorSwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+
+  sizeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  sizeGuideLink: {
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  sizeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  sizeChip: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 4,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+  },
+  sizeChipText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  quantitySection: {
+    marginTop: SPACING.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.gutter,
+  },
+  quantityStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.md,
+    padding: 4,
+  },
+  stepperButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quantityValue: {
+    width: 48,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  relatedSection: {
+    marginTop: SPACING.xl,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingBottom: SPACING.lg,
+  },
+  relatedTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: SPACING.md,
+  },
+  relatedCard: {
+    width: 160,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+  },
+  relatedImage: {
+    width: '100%',
+    height: 160,
+    resizeMode: 'cover',
+  },
+  relatedContent: {
+    padding: SPACING.sm,
+  },
+  relatedName: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  relatedPrice: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.marginMobile,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xl + SPACING.md,
+    borderTopWidth: 1,
+  },
+  footerButton: {
+    flex: 1,
+  },
+});
+
+export default ProductDetailsScreen;
