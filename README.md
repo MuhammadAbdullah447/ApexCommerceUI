@@ -1,97 +1,147 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Apex Commerce UI
 
-# Getting Started
+A React Native e-commerce mobile app UI, built with **React Native CLI** and **TypeScript**. This project recreates a full 6-screen shopping app experience — Splash, Login, Home, Product List, Product Details, and Profile — including light/dark theming, local search and filtering, favorites, and a fully custom design system.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+This project is a **learning/internship project**: all product and user data is local dummy data, there is no backend, and there is no real authentication. It is intentionally built using only foundational React Native and TypeScript concepts (no navigation library, no state management library, no backend) as part of a structured, syllabus-driven mobile development curriculum.
 
-## Step 1: Start Metro
+---
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- **Splash Screen** — branded launch screen with an auto-timed transition to Login
+- **Login Screen** — email/password form with local validation, social login UI (Google/Apple), password visibility toggle
+- **Home Screen** — personalized greeting, live search, category filtering, promotional banner, New Arrivals and Popular Products grids
+- **Product List Screen** — full catalogue browsing with search, category filters, and a cycling sort control (price low→high / high→low)
+- **Product Details Screen** — swipeable image gallery, star ratings, expandable description, color/size selection, quantity stepper, related products, Add to Cart / Buy Now
+- **Profile Screen** — user info, account menu, and a working **Dark Mode toggle** that re-themes the entire app
+- **System-aware Dark Mode** — the app matches your device's system theme on launch, and follows live system theme changes until you manually override it with the in-app toggle
+- **Favorites** — tap the heart on any product to favorite/unfavorite it, synced consistently across every screen
+- **Fully local state** — no backend, no persistence; all data lives in local arrays and resets on app restart
 
-```sh
-# Using npm
-npm start
+---
 
-# OR using Yarn
-yarn start
+## Tech Stack
+
+- **React Native** — bare CLI (`@react-native-community/cli`), **not** Expo
+- **TypeScript**
+- **react-native-vector-icons** (`MaterialIcons` + `MaterialCommunityIcons`) — the only third-party package used
+
+No navigation library, no state management library (Redux/Context/Zustand), no HTTP client, no storage library, and no animation library are used in this project — everything is built with React's core `useState`/`useEffect` and React Native's built-in components.
+
+---
+
+## Project Structure
+
+```
+ApexCommerceUI/
+├── android/                  Native Android project
+├── ios/                      Native iOS project
+├── src/
+│   ├── assets/                Reserved for local images/fonts (currently uses remote placeholder images)
+│   ├── components/            Reusable UI components
+│   │   ├── Button.tsx
+│   │   ├── Header.tsx
+│   │   ├── SearchBar.tsx
+│   │   ├── ProductCard.tsx
+│   │   ├── CategoryChip.tsx
+│   │   ├── SectionTitle.tsx
+│   │   └── BottomNavBar.tsx
+│   ├── constants/              Design system
+│   │   ├── theme.ts             Colors (light + dark), spacing, radius, status bar height
+│   │   └── typography.ts        Text style scale
+│   └── screens/                 One file per app screen
+│       ├── SplashScreen.tsx
+│       ├── LoginScreen.tsx
+│       ├── HomeScreen.tsx
+│       ├── ProductListScreen.tsx
+│       ├── ProductDetailsScreen.tsx
+│       └── ProfileScreen.tsx
+├── App.tsx                    Root component — owns navigation state, favorites, and dark mode
+├── index.js
+├── package.json
+└── tsconfig.json
 ```
 
-## Step 2: Build and run your app
+---
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Getting Started
 
-### Android
+### Prerequisites
 
-```sh
-# Using npm
-npm run android
+- Node.js (LTS recommended)
+- A configured Android development environment (Android Studio, Android SDK, `ANDROID_HOME` set up) — see React Native's [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide, **Android → React Native CLI** tab
+- A physical Android device with **USB debugging enabled**, or an Android emulator
 
-# OR using Yarn
-yarn android
+This project has been developed and tested on a **physical Android device** via USB debugging. iOS has not been tested.
+
+### Install dependencies
+
+```bash
+npm install
 ```
 
-### iOS
+### Link vector icon fonts (Android)
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+This project uses `react-native-vector-icons`, which requires one manual native step on Android. Confirm the following line is present at the bottom of `android/app/build.gradle`:
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+```gradle
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 ```
 
-Then, and every time you update your native dependencies, run:
+(This should already be committed to the repo — only relevant if setting up a fresh clone shows missing icons.)
 
-```sh
-bundle exec pod install
+### Run the app
+
+**1. Start Metro (the JS bundler)** — in one terminal:
+
+```bash
+npx react-native start
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+**2. Connect your Android device**, then in a second terminal, verify it's detected:
 
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+```bash
+adb devices
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+**3. Build and install the app:**
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```bash
+npx react-native run-android
+```
 
-## Step 3: Modify your app
+The app should build and launch automatically on your connected device.
 
-Now that you have successfully run the app, let's make changes!
+### Making changes
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Edit any file inside `src/` or `App.tsx` and save — [Fast Refresh](https://reactnative.dev/docs/fast-refresh) will update the running app automatically. If something looks out of sync after a native or config change, force a full reload: press **R twice** on your device, or open the Dev Menu (`Ctrl+M` / `Cmd+M`) and select **Reload**.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+---
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+## Design System
 
-## Congratulations! :tada:
+All colors, spacing, border radius, and typography are centralized in `src/constants/theme.ts` and `src/constants/typography.ts`. Every screen and component reads from these shared tokens rather than hardcoding values, and accepts a `colors` prop so it automatically re-themes between light and dark mode.
 
-You've successfully run and modified your React Native App. :partying_face:
+---
 
-### Now what?
+## Project Constraints
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+This project intentionally avoids the following, as part of its structured learning scope:
 
-# Troubleshooting
+- No React Navigation / Expo Router — screen switching is handled manually via local state in `App.tsx`
+- No Redux, Context API, Zustand, or any global state library
+- No AsyncStorage or any persistent storage — state resets on app restart
+- No backend, REST APIs, or Axios — all data is local, hardcoded TypeScript arrays
+- No animation libraries (`Animated`, Reanimated, Lottie) — all UI is static
+- No advanced hooks (`useMemo`, `useCallback`, `useRef`, `useReducer`, `useContext`) — only `useState` and `useEffect` are used
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+These constraints will be lifted in future development phases (navigation, forms, backend integration).
 
-# Learn More
+---
 
-To learn more about React Native, take a look at the following resources:
+## Known Limitations
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- Product descriptions and review counts are placeholder text for most products (only the default/demo product has fully unique detail content)
+- "Related Products" on the Product Details screen is a static list, not dynamically related to the viewed product
+- Cart and Wishlist bottom-navigation tabs are present in the UI but not yet functional — there are no dedicated Cart/Wishlist screens
+- No custom fonts are loaded — the app uses each platform's system default font
