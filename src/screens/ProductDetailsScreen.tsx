@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   Image,
@@ -10,10 +9,13 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/Header';
 import Button from '../components/Button';
-import { COLORS, SPACING, RADIUS, STATUSBAR_HEIGHT, ColorScheme } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, ColorScheme } from '../constants/theme';
+import Toast from '../components/Toast';
+import BottomSheet from '../components/BottomSheet';
 
 
 interface ProductDetails {
@@ -110,6 +112,9 @@ const ProductDetailsScreen = ({
   const [selectedColor, setSelectedColor] = useState(COLORS_LIST[0]);
   const [selectedSize, setSelectedSize] = useState(SIZES[0]);
   const [quantity, setQuantity] = useState(1);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
 
   const decreaseQuantity = () => {
     if (quantity > 1) setQuantity(quantity - 1);
@@ -118,7 +123,7 @@ const ProductDetailsScreen = ({
   const increaseQuantity = () => setQuantity(quantity + 1);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
       <Header
         title="Apex Premium"
         showBackButton
@@ -232,7 +237,7 @@ const ProductDetailsScreen = ({
               <Text style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
                 SIZE (US)
               </Text>
-              <Pressable>
+              <Pressable onPress={() => setShowSizeGuide(true)}>
                 <Text style={[styles.sizeGuideLink, { color: colors.primary }]}>Size Guide</Text>
               </Pressable>
             </View>
@@ -313,12 +318,75 @@ const ProductDetailsScreen = ({
       {/* Sticky Footer */}
       <View style={[styles.footer, { backgroundColor: colors.surfaceContainerLowest, borderTopColor: colors.outlineVariant }]}>
         <View style={styles.footerButton}>
-          <Button label="Add to Cart" onPress={() => onAddToCart?.()} variant="outline" colors={colors} />
+          <Button
+            label="Add to Cart"
+            onPress={() => {
+              setToastMessage(`${product?.title || 'Item'} added to cart!`);
+              setToastVisible(true);
+              onAddToCart?.();
+            }}
+            variant="outline"
+            colors={colors}
+          />
         </View>
         <View style={styles.footerButton}>
-          <Button label="Buy Now" onPress={() => onBuyNow?.()} variant="primary" colors={colors} />
+          <Button
+            label="Buy Now"
+            onPress={() => {
+              setToastMessage(`Proceeding to checkout with ${quantity}x ${product?.title || 'item'}!`);
+              setToastVisible(true);
+              onBuyNow?.();
+            }}
+            variant="primary"
+            colors={colors}
+          />
         </View>
       </View>
+
+      {/* Size Guide Bottom Sheet */}
+      <BottomSheet
+        visible={showSizeGuide}
+        title="Size Guide"
+        onClose={() => setShowSizeGuide(false)}
+        colors={colors}
+      >
+        <View style={styles.sheetContent}>
+          <Text style={[styles.sheetSubtitle, { color: colors.onSurfaceVariant }]}>
+            US Size conversions for footwear and apparel
+          </Text>
+          <View style={styles.sheetTable}>
+            <View style={[styles.tableRow, styles.tableHeaderRow, { borderBottomColor: colors.outlineVariant }]}>
+              <Text style={[styles.tableHeaderCell, { color: colors.onSurface }]}>US</Text>
+              <Text style={[styles.tableHeaderCell, { color: colors.onSurface }]}>EU</Text>
+              <Text style={[styles.tableHeaderCell, { color: colors.onSurface }]}>UK</Text>
+              <Text style={[styles.tableHeaderCell, { color: colors.onSurface }]}>Inches</Text>
+            </View>
+            {[
+              { us: '7.0', eu: '40', uk: '6.5', in: '9.6"' },
+              { us: '8.0', eu: '41', uk: '7.5', in: '10.0"' },
+              { us: '9.0', eu: '42', uk: '8.5', in: '10.3"' },
+              { us: '10.0', eu: '43', uk: '9.5', in: '10.6"' },
+              { us: '11.0', eu: '44', uk: '10.5', in: '11.0"' },
+              { us: '12.0', eu: '45', uk: '11.5', in: '11.3"' },
+            ].map((row, index) => (
+              <View key={index} style={[styles.tableRow, { borderBottomColor: colors.outlineVariant }]}>
+                <Text style={[styles.tableCell, { color: colors.onSurface }]}>{row.us}</Text>
+                <Text style={[styles.tableCell, { color: colors.onSurface }]}>{row.eu}</Text>
+                <Text style={[styles.tableCell, { color: colors.onSurface }]}>{row.uk}</Text>
+                <Text style={[styles.tableCell, { color: colors.onSurface }]}>{row.in}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </BottomSheet>
+
+      {/* Toast Alert Notification */}
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        onDismiss={() => setToastVisible(false)}
+        colors={colors}
+      />
     </SafeAreaView>
   );
 };
@@ -347,7 +415,6 @@ const StarRating = ({ rating, colors }: { rating: number; colors: ColorScheme })
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: STATUSBAR_HEIGHT,
   },
   gallery: {
     width: '100%',
@@ -544,6 +611,39 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  sheetContent: {
+    paddingVertical: 10,
+  },
+  sheetSubtitle: {
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  sheetTable: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  tableHeaderRow: {
+    backgroundColor: '#f9fafb',
+  },
+  tableHeaderCell: {
+    flex: 1,
+    fontWeight: '700',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  tableCell: {
+    flex: 1,
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
 

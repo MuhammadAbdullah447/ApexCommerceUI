@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ViewStyle,
   GestureResponderEvent,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS, TYPOGRAPHY, RADIUS, SPACING, ColorScheme } from '../constants/theme';
 
@@ -20,6 +21,7 @@ interface ButtonProps {
   fullWidth?: boolean;
   style?: ViewStyle;
   colors?: ColorScheme;
+  loading?: boolean;
 }
 
 
@@ -32,24 +34,34 @@ const Button = ({
   fullWidth = true,
   style,
   colors = COLORS,
+  loading = false,
 }: ButtonProps) => {
 
   const variantStyles = getVariantStyles(variant, colors);
+  const indicatorColor = variant === 'outline' ? colors.primary : colors.white;
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={loading ? undefined : onPress}
       style={({ pressed }) => [
         styles.base,
         variantStyles.container,
         fullWidth && styles.fullWidth,
-        pressed && styles.pressed,
+        (pressed && !loading) && styles.pressed,
+        (pressed && !loading && variant === 'outline') && { backgroundColor: colors.surfaceContainerLow },
+        loading && { opacity: 0.7 },
         style,
       ]}
     >
-      {icon && iconPosition === 'left' && icon}
-      <Text style={[styles.label, variantStyles.label]}>{label}</Text>
-      {icon && iconPosition === 'right' && icon}
+      {loading ? (
+        <ActivityIndicator size="small" color={indicatorColor} />
+      ) : (
+        <>
+          {icon && iconPosition === 'left' && icon}
+          <Text style={[styles.label, variantStyles.label]}>{label}</Text>
+          {icon && iconPosition === 'right' && icon}
+        </>
+      )}
     </Pressable>
   );
 };
@@ -72,7 +84,7 @@ function getVariantStyles(variant: ButtonVariant, colors: ColorScheme) {
           backgroundColor: colors.onSurface,
           borderWidth: 0,
         },
-        label: { color: colors.white },
+        label: { color: colors.background },
       };
     case 'primary':
     default:

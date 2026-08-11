@@ -10,6 +10,7 @@ interface BottomNavBarProps {
   activeTab: NavTab;
   onTabPress: (tab: NavTab) => void;
   cartCount?: number;
+  wishlistCount?: number;
   colors?: ColorScheme;
 }
 
@@ -27,6 +28,7 @@ const BottomNavBar = ({
   activeTab,
   onTabPress,
   cartCount = 0,
+  wishlistCount = 0,
   colors = COLORS,
 }: BottomNavBarProps) => {
   return (
@@ -52,6 +54,13 @@ const BottomNavBar = ({
               {tab.key === 'cart' && cartCount > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.badgeText}>{cartCount}</Text>
+                </View>
+              )}
+
+              {/* Wishlist badge: only shown on the Wishlist tab, and only if count > 0 */}
+              {tab.key === 'wishlist' && wishlistCount > 0 && (
+                <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.badgeText}>{wishlistCount}</Text>
                 </View>
               )}
             </View>

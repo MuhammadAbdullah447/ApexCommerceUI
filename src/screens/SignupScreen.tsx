@@ -10,66 +10,63 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   StyleSheet,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import BrandIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, LoginFormValues } from '../utils/validation';
+import { signupSchema, SignupFormValues } from '../utils/validation';
 import Button from '../components/Button';
+import Header from '../components/Header';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY, ColorScheme } from '../constants/theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { loginWithDummyJSON, UserProfile } from '../services/auth';
+import { registerMockUser } from '../services/auth';
 
-type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type SignupScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Signup'>;
 
-interface LoginScreenProps {
-  navigation: LoginScreenNavigationProp;
-  onLoginSuccess: (user: UserProfile) => void;
-  onSignUpPress?: () => void;
+interface SignupScreenProps {
+  navigation: SignupScreenNavigationProp;
   colors?: ColorScheme;
 }
 
-const LoginScreen = ({
-  navigation,
-  onLoginSuccess,
-  onSignUpPress,
-  colors = COLORS,
-}: LoginScreenProps) => {
+const SignupScreen = ({ navigation, colors = COLORS }: SignupScreenProps) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
-      username: '',
+      name: '',
+      email: '',
       password: '',
+      confirmPassword: '',
     },
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
-    setLoading(true);
-    setApiError(null);
-    try {
-      const user = await loginWithDummyJSON(data.username, data.password);
-      onLoginSuccess(user);
-    } catch (err: any) {
-      setApiError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
+  const onSubmit = async (data: SignupFormValues) => {
+    // Register the user credentials locally in memory
+    await registerMockUser({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+    });
+    navigation.replace('Login');
   };
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header
+        title="Create Account"
+        showBackButton
+        onBackPress={() => navigation.goBack()}
+        showBell={false}
+        colors={colors}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -79,41 +76,30 @@ const LoginScreen = ({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Brand Header */}
-            <View style={styles.heroSection}>
-              <View style={styles.bagIconWrapper}>
-                <Icon name="shopping-bag" size={48} color={colors.primary} />
-              </View>
-              <Text style={[styles.welcomeTitle, { color: colors.onSurface }]}>Welcome back</Text>
+            {/* Header branding */}
+            <View style={styles.brandHeader}>
+              <Text style={[styles.welcomeTitle, { color: colors.onSurface }]}>Join Apex</Text>
               <Text style={[styles.welcomeSubtitle, { color: colors.onSurfaceVariant }]}>
-                Elevate your shopping experience with Apex Premium.
+                Experience premium quality products and seamless shopping.
               </Text>
             </View>
 
-            {/* Login Form Card */}
+            {/* Form Card */}
             <View style={[styles.card, { backgroundColor: colors.surfaceContainerLowest }]}>
               
-              {/* API Error Message */}
-              {apiError && (
-                <View style={[styles.apiErrorWrapper, { backgroundColor: colors.errorContainer, borderColor: colors.error }]}>
-                  <Icon name="error-outline" size={20} color={colors.error} />
-                  <Text style={[styles.apiErrorText, { color: colors.onErrorContainer }]}>{apiError}</Text>
-                </View>
-              )}
-
-              {/* Username/Email Field */}
+              {/* Name Field */}
               <View style={styles.fieldGroup}>
-                <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>Username or Email</Text>
+                <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>Full Name</Text>
                 <Controller
                   control={control}
-                  name="username"
+                  name="name"
                   render={({ field: { onChange, value } }) => (
                     <View
                       style={[
                         styles.inputWrapper,
                         {
                           backgroundColor: colors.surfaceContainerLow,
-                          borderColor: errors.username ? colors.error : colors.outlineVariant,
+                          borderColor: errors.name ? colors.error : colors.outlineVariant,
                         },
                       ]}
                     >
@@ -121,28 +107,55 @@ const LoginScreen = ({
                       <TextInput
                         value={value}
                         onChangeText={onChange}
-                        placeholder="Enter your username or email"
+                        placeholder="John Doe"
                         placeholderTextColor={colors.outline}
-                        keyboardType="default"
+                        style={[styles.input, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  )}
+                />
+                {errors.name && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>{errors.name.message}</Text>
+                )}
+              </View>
+
+              {/* Email Field */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>Email Address</Text>
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { onChange, value } }) => (
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        {
+                          backgroundColor: colors.surfaceContainerLow,
+                          borderColor: errors.email ? colors.error : colors.outlineVariant,
+                        },
+                      ]}
+                    >
+                      <Icon name="mail-outline" size={20} color={colors.outline} style={styles.inputIcon} />
+                      <TextInput
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="name@company.com"
+                        placeholderTextColor={colors.outline}
+                        keyboardType="email-address"
                         autoCapitalize="none"
                         style={[styles.input, { color: colors.onSurface }]}
                       />
                     </View>
                   )}
                 />
-                {errors.username && (
-                  <Text style={[styles.errorText, { color: colors.error }]}>{errors.username.message}</Text>
+                {errors.email && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>{errors.email.message}</Text>
                 )}
               </View>
 
               {/* Password Field */}
               <View style={styles.fieldGroup}>
-                <View style={styles.passwordLabelRow}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>Password</Text>
-                  <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
-                    <Text style={[styles.forgotPassword, { color: colors.primary }]}>Forgot Password?</Text>
-                  </Pressable>
-                </View>
+                <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>Password</Text>
                 <Controller
                   control={control}
                   name="password"
@@ -183,51 +196,56 @@ const LoginScreen = ({
                 )}
               </View>
 
-              {/* Login Button */}
-              <Button
-                label="Login"
-                onPress={handleSubmit(onSubmit)}
-                variant="primary"
-                icon={<Icon name="arrow-forward" size={20} color={colors.onPrimary} />}
-                iconPosition="right"
-                colors={colors}
-                loading={loading}
-              />
-
-              {/* Divider */}
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
-                <Text style={[styles.dividerText, { color: colors.outline }]}>or continue with</Text>
-                <View style={[styles.dividerLine, { backgroundColor: colors.outlineVariant }]} />
+              {/* Confirm Password Field */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: colors.onSurfaceVariant }]}>Confirm Password</Text>
+                <Controller
+                  control={control}
+                  name="confirmPassword"
+                  render={({ field: { onChange, value } }) => (
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        {
+                          backgroundColor: colors.surfaceContainerLow,
+                          borderColor: errors.confirmPassword ? colors.error : colors.outlineVariant,
+                        },
+                      ]}
+                    >
+                      <Icon name="lock-outline" size={20} color={colors.outline} style={styles.inputIcon} />
+                      <TextInput
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="••••••••"
+                        placeholderTextColor={colors.outline}
+                        secureTextEntry={!isConfirmPasswordVisible}
+                        style={[styles.input, { color: colors.onSurface }]}
+                      />
+                      <Pressable
+                        style={styles.eyeButton}
+                        onPress={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}
+                      >
+                        <Icon
+                          name={isConfirmPasswordVisible ? 'visibility-off' : 'visibility'}
+                          size={20}
+                          color={colors.outlineVariant}
+                        />
+                      </Pressable>
+                    </View>
+                  )}
+                />
+                {errors.confirmPassword && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    {errors.confirmPassword.message}
+                  </Text>
+                )}
               </View>
 
-              {/* Social Logins */}
+              {/* Register Button */}
               <Button
-                label="Google"
-                onPress={() => {}}
-                variant="outline"
-                icon={
-                  <Image
-                    source={{ uri: 'https://developers.google.com/identity/images/g-logo.png' }}
-                    style={styles.googleIcon}
-                  />
-                }
-                iconPosition="left"
-                colors={colors}
-              />
-              <View style={{ height: SPACING.xs }} />
-              <Button
-                label="Apple"
-                onPress={() => {}}
-                variant="dark"
-                icon={
-                  <BrandIcon
-                    name="apple"
-                    size={20}
-                    color={colors.background === '#10131a' ? colors.background : colors.white}
-                  />
-                }
-                iconPosition="left"
+                label="Create Account"
+                onPress={handleSubmit(onSubmit)}
+                variant="primary"
                 colors={colors}
               />
             </View>
@@ -235,9 +253,9 @@ const LoginScreen = ({
             {/* Footer */}
             <View style={styles.footer}>
               <Text style={[styles.footerText, { color: colors.onSurfaceVariant }]}>
-                Don't have an account?{' '}
-                <Text style={[styles.signUpLink, { color: colors.primary }]} onPress={onSignUpPress}>
-                  Sign Up
+                Already have an account?{' '}
+                <Text style={[styles.loginLink, { color: colors.primary }]} onPress={() => navigation.navigate('Login')}>
+                  Login
                 </Text>
               </Text>
             </View>
@@ -259,14 +277,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: SPACING.marginMobile,
-    paddingVertical: SPACING.xl,
+    paddingVertical: SPACING.lg,
   },
-  heroSection: {
+  brandHeader: {
     alignItems: 'center',
     marginBottom: SPACING.xl,
-  },
-  bagIconWrapper: {
-    marginBottom: SPACING.md,
   },
   welcomeTitle: {
     fontSize: 28,
@@ -276,16 +291,12 @@ const styles = StyleSheet.create({
   welcomeSubtitle: {
     fontSize: TYPOGRAPHY.bodyMain.fontSize,
     textAlign: 'center',
+    paddingHorizontal: SPACING.md,
   },
   card: {
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     gap: SPACING.md,
-  },
-  errorText: {
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: SPACING.xs,
   },
   fieldGroup: {
     gap: SPACING.xs,
@@ -293,16 +304,6 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: TYPOGRAPHY.labelSmall.fontSize,
     paddingHorizontal: SPACING.xs,
-  },
-  passwordLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xs,
-  },
-  forgotPassword: {
-    fontSize: TYPOGRAPHY.labelSmall.fontSize,
-    fontWeight: '600',
   },
   inputWrapper: {
     height: 56,
@@ -322,18 +323,10 @@ const styles = StyleSheet.create({
   eyeButton: {
     padding: SPACING.xs,
   },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: TYPOGRAPHY.labelSmall.fontSize,
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: SPACING.xs,
   },
   footer: {
     marginTop: SPACING.xl,
@@ -342,26 +335,9 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: TYPOGRAPHY.bodyMain.fontSize,
   },
-  signUpLink: {
+  loginLink: {
     fontWeight: '700',
-  },
-  apiErrorWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    gap: SPACING.sm,
-  },
-  apiErrorText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  googleIcon: {
-    width: 20,
-    height: 20,
   },
 });
 
-export default LoginScreen;
+export default SignupScreen;

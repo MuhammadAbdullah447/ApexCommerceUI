@@ -1,16 +1,18 @@
 import React from 'react';
-import { SafeAreaView, View, Text, Image, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Header from '../components/Header';
 import BottomNavBar, { NavTab } from '../components/BottomNavBar';
-import { COLORS, SPACING, RADIUS, STATUSBAR_HEIGHT, ColorScheme } from '../constants/theme';
+import { COLORS, SPACING, RADIUS, ColorScheme } from '../constants/theme';
+import { UserProfile } from '../services/auth';
 
 
 interface ProfileScreenProps {
-  onTabPress: (tab: NavTab) => void;
   onLogoutPress: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  userProfile: UserProfile | null;
   colors?: ColorScheme;
 }
 
@@ -34,16 +36,16 @@ const ACCOUNT_GROUP: MenuItem[] = [
 
 
 const ProfileScreen = ({
-  onTabPress,
   onLogoutPress,
   isDarkMode,
   onToggleDarkMode,
+  userProfile,
   colors = COLORS,
 }: ProfileScreenProps) => {
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Header title="Apex Premium" onBellPress={() => {}} colors={colors} />
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header title="Apex Premium" colors={colors} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -54,7 +56,7 @@ const ProfileScreen = ({
           <View style={styles.avatarWrapper}>
             <Image
               source={{
-                uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAdSk4SDTB8YFDi8rSYqvPko1H10Tp6HEX4Qguv_ZJS8HkTujZeDsxArxDh-QVBE1bfQCKLKDAYFula7fjzH7G-KDm8n_u5hwcHKzMDtUVHYcdt7J74rtiPLOR_sjgDCnqxnsifit08Kdzrx296n2YywWvILGuxjigrQfRPLQ7pcsayM6cljjAmvNWsuNcA41ldfpr8SZwUCaZaUGrlPPpBFNgPmU-2fY1oFlmq4dij_TmKAlN4JUXvxZO872eeebU2F8v4JIV1M0U',
+                uri: userProfile?.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAdSk4SDTB8YFDi8rSYqvPko1H10Tp6HEX4Qguv_ZJS8HkTujZeDsxArxDh-QVBE1bfQCKLKDAYFula7fjzH7G-KDm8n_u5hwcHKzMDtUVHYcdt7J74rtiPLOR_sjgDCnqxnsifit08Kdzrx296n2YywWvILGuxjigrQfRPLQ7pcsayM6cljjAmvNWsuNcA41ldfpr8SZwUCaZaUGrlPPpBFNgPmU-2fY1oFlmq4dij_TmKAlN4JUXvxZO872eeebU2F8v4JIV1M0U',
               }}
               style={styles.avatar}
             />
@@ -62,9 +64,11 @@ const ProfileScreen = ({
               <Icon name="edit" size={16} color={colors.white} />
             </Pressable>
           </View>
-          <Text style={[styles.name, { color: colors.onSurface }]}>Alexander Sterling</Text>
+          <Text style={[styles.name, { color: colors.onSurface }]}>
+            {userProfile ? `${userProfile.firstName} ${userProfile.lastName}` : 'Alexander Sterling'}
+          </Text>
           <Text style={[styles.email, { color: colors.onSurfaceVariant }]}>
-            alexander.sterling@premium.com
+            {userProfile ? userProfile.email : 'alexander.sterling@premium.com'}
           </Text>
         </View>
 
@@ -118,7 +122,6 @@ const ProfileScreen = ({
         </View>
       </ScrollView>
 
-      <BottomNavBar activeTab="profile" onTabPress={onTabPress} cartCount={2} colors={colors} />
     </SafeAreaView>
   );
 };
@@ -150,7 +153,6 @@ const MenuRow = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: STATUSBAR_HEIGHT,
   },
   scrollContent: {
     paddingHorizontal: SPACING.marginMobile,
