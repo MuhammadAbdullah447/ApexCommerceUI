@@ -104,27 +104,12 @@ const RootNavigator = ({
       <Stack.Screen name="ProductDetails">
         {(props) => {
           const productId = props.route.params?.productId;
-          const tappedProduct = ALL_PRODUCTS.find((item) => item.id === productId);
-          const productDetails = tappedProduct
-            ? {
-                id: tappedProduct.id,
-                category: 'PERFORMANCE SERIES',
-                title: tappedProduct.title,
-                price: tappedProduct.price,
-                rating: tappedProduct.rating,
-                reviewCount: 1248,
-                description:
-                  'Engineered for elite marathoners and daily commuters alike, this piece redefines high-performance quality. Featuring premium materials and thoughtful construction, it delivers comfort and durability for everyday use.',
-                images: [tappedProduct.imageUri],
-              }
-            : undefined;
-
           const { addToCart } = useCart();
 
           return (
             <ProductDetailsScreen
               {...props}
-              product={productDetails}
+              productId={productId}
               onBackPress={() => props.navigation.goBack()}
               isFavorite={productId ? favoriteIds.includes(productId) : false}
               onToggleFavorite={() => {
@@ -132,15 +117,13 @@ const RootNavigator = ({
                   onToggleFavorite(productId);
                 }
               }}
-              onAddToCart={() => {
-                if (tappedProduct) {
-                  addToCart({
-                    id: tappedProduct.id,
-                    title: tappedProduct.title,
-                    price: tappedProduct.price,
-                    imageUri: tappedProduct.imageUri,
-                  });
+              onAddToCart={(item) => {
+                if (item) {
+                  addToCart(item);
                 }
+              }}
+              onRelatedProductPress={(relId) => {
+                props.navigation.push('ProductDetails', { productId: relId });
               }}
               colors={colors}
             />

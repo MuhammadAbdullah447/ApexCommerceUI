@@ -11,6 +11,8 @@ import { PRODUCTS } from './ProductListScreen';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { AppTabParamList } from '../navigation/types';
 
+import { useProducts } from '../hooks/useProducts';
+
 const ALL_PRODUCTS = [...NEW_ARRIVALS, ...POPULAR_PRODUCTS, ...PRODUCTS];
 
 type WishlistScreenNavigationProp = BottomTabNavigationProp<AppTabParamList, 'Wishlist'>;
@@ -30,7 +32,9 @@ const WishlistScreen = ({
   onProductPress,
   colors = COLORS,
 }: WishlistScreenProps) => {
-  const wishlistItems = ALL_PRODUCTS.filter((item) => favoriteIds.includes(item.id));
+  const productsQuery = useProducts({ limit: 50 });
+  const allProducts = productsQuery.data?.mappedProducts || ALL_PRODUCTS;
+  const wishlistItems = allProducts.filter((item) => favoriteIds.includes(item.id));
 
   const renderRightActions = (id: string) => {
     return (

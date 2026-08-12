@@ -9,6 +9,7 @@ import {
   TextInput,
   Keyboard,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../components/Header';
@@ -21,10 +22,15 @@ import { COLORS, SPACING, RADIUS, ColorScheme } from '../constants/theme';
 import { UserProfile } from '../services/auth';
 import FilterBottomSheet, { FilterOptions } from '../components/FilterBottomSheet';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-
-
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { AppTabParamList } from '../navigation/types';
+import {
+  useProducts,
+  useCategories,
+  useCategoryProducts,
+  useSearchProducts,
+} from '../hooks/useProducts';
+import { Product } from '../types/product';
 
 interface HomeScreenProps {
   onProductPress: (productId: string) => void;
@@ -35,7 +41,6 @@ interface HomeScreenProps {
   navigation: BottomTabNavigationProp<AppTabParamList, 'Home'>;
   colors?: ColorScheme;
 }
-
 
 const CATEGORIES = ['All', 'Shoes', 'Apparel', 'Watches', 'Accessories'];
 
@@ -119,7 +124,6 @@ export const POPULAR_PRODUCTS = [
   },
 ];
 
-
 const HomeScreen = ({
   onProductPress,
   favoriteIds,
@@ -139,9 +143,28 @@ const HomeScreen = ({
     minRating: 0,
   });
 
-  const matchesFilters = (product: { title: string; category: string; rating: number; price: number; inStock: boolean }) => {
-    const matchesCategory = filters.category === 'All' || product.category === filters.category;
-    const matchesSearch = product.title.toLowerCase().includes(searchText.toLowerCase());
+  const categoriesQuery = useCategories();
+  const productsQuery = useProducts({ limit: 30 });
+  const categoryProductsQuery = useCategoryProducts(
+    filters.category !== 'All' ? filters.category.toLowerCase().replace(/ /g, '-') : null
+  );
+  const searchQuery = useSearchProducts(searchText);
+
+  const displayCategories = ['All', ...(categoriesQuery.data?.slice(0, 6).map((c) => c.name) || ['Beauty', 'Fragrances', 'Furniture', 'Groceries', 'Laptops'])];
+
+  let rawProducts: Product[] = productsQuery.data?.mappedProducts || [];
+  if (searchText.trim() && searchQuery.data?.mappedProducts) {
+    rawProducts = searchQuery.data.mappedProducts;
+  } else if (filters.category !== 'All' && categoryProductsQuery.data?.mappedProducts) {
+    rawProducts = categoryProductsQuery.data.mappedProducts;
+  }
+
+  const matchesFilters = (product: Product) => {
+    const matchesCategory =
+      filters.category === 'All' ||
+      product.category.toLowerCase().includes(filters.category.toLowerCase());
+    const matchesSearch =
+      !searchText.trim() || product.title.toLowerCase().includes(searchText.toLowerCase());
     const matchesStock = !filters.inStockOnly || product.inStock;
     const matchesRating = product.rating >= filters.minRating;
     return matchesCategory && matchesSearch && matchesStock && matchesRating;
@@ -153,8 +176,14 @@ const HomeScreen = ({
     return 0;
   };
 
-  const derivedNewArrivals = [...NEW_ARRIVALS].filter(matchesFilters).sort(sortProducts);
-  const derivedPopularProducts = [...POPULAR_PRODUCTS].filter(matchesFilters).sort(sortProducts);
+  const filteredProducts = rawProducts.filter(matchesFilters).sort(sortProducts);
+  const derivedNewArrivals = filteredProducts.slice(0, 6);
+  const derivedPopularProducts = filteredProducts.slice(6, 16);
+
+  const isLoading =
+    productsQuery.isPending ||
+    (filters.category !== 'All' && categoryProductsQuery.isPending) ||
+    (Boolean(searchText.trim()) && searchQuery.isPending);
 
   const isFilterActive =
     filters.priceSort !== 'none' || filters.inStockOnly || filters.minRating > 0;
@@ -242,7 +271,7 @@ const HomeScreen = ({
             colors={colors}
           />
           <View style={styles.categoryRow}>
-            {CATEGORIES.map((category) => (
+            {displayCategories.map((category) => (
               <CategoryChip
                 key={category}
                 label={category}
@@ -253,6 +282,12 @@ const HomeScreen = ({
             ))}
           </View>
         </View>
+
+        {isLoading ? (
+          <View style={{ paddingVertical: SPACING.xl, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : null}
 
         {/* New Arrivals */}
         <View style={styles.section}>

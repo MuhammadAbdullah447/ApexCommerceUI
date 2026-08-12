@@ -8,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -16,7 +17,7 @@ import Button from '../components/Button';
 import { COLORS, SPACING, RADIUS, ColorScheme } from '../constants/theme';
 import Toast from '../components/Toast';
 import BottomSheet from '../components/BottomSheet';
-
+import { useProductDetails, useProducts } from '../hooks/useProducts';
 
 interface ProductDetails {
   id: string;
@@ -37,11 +38,12 @@ interface RelatedProduct {
 }
 
 interface ProductDetailsScreenProps {
+  productId?: string;
   product?: ProductDetails;
   onBackPress: () => void;
   onSharePress?: () => void;
   onBellPress?: () => void;
-  onAddToCart?: () => void;
+  onAddToCart?: (productItem?: { id: string; title: string; price: number; imageUri: string }) => void;
   onBuyNow?: () => void;
   onRelatedProductPress?: (productId: string) => void;
   isFavorite?: boolean;
@@ -70,33 +72,9 @@ const DEFAULT_PRODUCT: ProductDetails = {
 const COLORS_LIST = ['#2563EB', '#131B2E', '#C3C6D7', '#E11D48'];
 const SIZES = ['8', '9', '10', '11', '12'];
 
-const RELATED_PRODUCTS: RelatedProduct[] = [
-  {
-    id: 'rp1',
-    title: 'Apex Stealth Pro',
-    price: 165,
-    imageUri:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDoP6WQaQ2Kkll93fXEVOdv_viMlqbvmF5JY1IuNFr8_1iEPa3O8w2U2PjgRCvfkn7O5hO0jWlPPwktBWYXh6Dq1MmhM6OGUA3McBe3wz1hD8xGb1vQn8g01Iit1B1pzb7MpFQWLHMHMBDA7gT726Of0xScU83Z9xv2bid6bgyI0rEVoQ37xoAFJdc4VZ8kVWM56R5ohrAUVVDi0jDAof-rfbbC8LOf030KxyZNX1RI-iezR1iFCDRiS9wWY6G2-hPfamClLwHUlMY',
-  },
-  {
-    id: 'rp2',
-    title: 'Apex Nitro Core',
-    price: 140,
-    imageUri:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuAf2r4EOXemXlE1D1RLpfT7-kMtmSvD-bDvIoXwQ0Q1vCIjyGU0UwfSXzsNJPa6Z1IM0tXafw9bgQxVFcXzXLCmHJM7U6rEUv7bg8SOPnRZwyuYLIUxWP4SyhD0tUfUXhuEMj4OdCWuZdOc50OepHSYgEtn9efganlDXADCclGrIghjcpuSGBkuvQRTts6Ar74C50UkVtw81iuKQeWSjf_CkNwMz1EUsJrQ8b-Q_MYuC0dK_KQxzER3rk4a_FoyVo9sk-9VUYJ3Y54',
-  },
-  {
-    id: 'rp3',
-    title: 'Apex Cloud Walker',
-    price: 210,
-    imageUri:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuBLt_RXojfO1Suo8oqOOJNwXES00DwRL0NTG2x2wBhyD0eUrJZBupf3P7z5vh7AuIOZI1Oi2MbaHbQWHv9uBnYB5bJpsXmfZ7WRTklp7oPFfif_EPWZF_gYc1KUBhfdYsNazBzCZp8lkSVndelgWAIewzs6_nO110Yi-uIdP2RTaWzL95cmmIE18TdZ7bjPn0Ar6thguMw1ijaYMq1Gvi4yNX7b0ssTpothCG46mzvgtfR-tX8FR8yqzaIiMI3mIQA9h-iwpZuiIfw',
-  },
-];
-
-
 const ProductDetailsScreen = ({
-  product = DEFAULT_PRODUCT,
+  productId,
+  product: fallbackProduct = DEFAULT_PRODUCT,
   onBackPress,
   onSharePress,
   onBellPress,
@@ -107,6 +85,35 @@ const ProductDetailsScreen = ({
   onToggleFavorite,
   colors = COLORS,
 }: ProductDetailsScreenProps) => {
+  const productQuery = useProductDetails(productId);
+  const relatedQuery = useProducts({ limit: 6 });
+
+  const fetchedProduct = productQuery.data?.product;
+  const activeProduct: ProductDetails = fetchedProduct
+    ? {
+        id: fetchedProduct.id,
+        category: fetchedProduct.category,
+        title: fetchedProduct.title,
+        price: fetchedProduct.price,
+        rating: fetchedProduct.rating,
+        reviewCount: fetchedProduct.reviewCount || 124,
+        description: fetchedProduct.description || fallbackProduct.description,
+        images: fetchedProduct.images && fetchedProduct.images.length > 0 ? fetchedProduct.images : [fetchedProduct.imageUri],
+      }
+    : fallbackProduct;
+
+  const relatedProducts: RelatedProduct[] = relatedQuery.data?.mappedProducts
+    ? relatedQuery.data.mappedProducts
+        .filter((p) => p.id !== activeProduct.id)
+        .slice(0, 4)
+        .map((p) => ({
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageUri: p.imageUri,
+        }))
+    : [];
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [selectedColor, setSelectedColor] = useState(COLORS_LIST[0]);
@@ -136,35 +143,43 @@ const ProductDetailsScreen = ({
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* IMAGE GALLERY */}
         <View style={styles.gallery}>
-          <FlatList
-            data={product.images}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(uri, index) => `${product.id}-${index}`}
-            onMomentumScrollEnd={(event) => {
-              const index = Math.round(
-                event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width,
-              );
-              setActiveImageIndex(index);
-            }}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.galleryImage} />
-            )}
-          />
-
-          <View style={styles.dotsRow}>
-            {product.images.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  { backgroundColor: colors.outlineVariant },
-                  index === activeImageIndex && { backgroundColor: colors.primary },
-                ]}
+          {productQuery.isPending ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <>
+              <FlatList
+                data={activeProduct.images}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(uri, index) => `${activeProduct.id}-${index}`}
+                onMomentumScrollEnd={(event) => {
+                  const index = Math.round(
+                    event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width,
+                  );
+                  setActiveImageIndex(index);
+                }}
+                renderItem={({ item }) => (
+                  <Image source={{ uri: item }} style={styles.galleryImage} />
+                )}
               />
-            ))}
-          </View>
+
+              <View style={styles.dotsRow}>
+                {activeProduct.images.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.dot,
+                      { backgroundColor: colors.outlineVariant },
+                      index === activeImageIndex && { backgroundColor: colors.primary },
+                    ]}
+                  />
+                ))}
+              </View>
+            </>
+          )}
 
           <Pressable
             style={[styles.favoriteButton, { backgroundColor: colors.surfaceContainerLowest }]}
@@ -182,19 +197,19 @@ const ProductDetailsScreen = ({
         <View style={styles.content}>
           <View style={styles.titleRow}>
             <View style={styles.titleColumn}>
-              <Text style={[styles.category, { color: colors.primary }]}>{product.category}</Text>
-              <Text style={[styles.title, { color: colors.onSurface }]}>{product.title}</Text>
+              <Text style={[styles.category, { color: colors.primary }]}>{activeProduct.category}</Text>
+              <Text style={[styles.title, { color: colors.onSurface }]}>{activeProduct.title}</Text>
             </View>
             <Text style={[styles.price, { color: colors.primary }]}>
-              ${product.price.toFixed(2)}
+              ${activeProduct.price.toFixed(2)}
             </Text>
           </View>
 
           {/* Rating */}
           <View style={styles.ratingRow}>
-            <StarRating rating={product.rating} colors={colors} />
+            <StarRating rating={activeProduct.rating} colors={colors} />
             <Text style={[styles.reviewCount, { color: colors.onSurfaceVariant }]}>
-              ({product.reviewCount.toLocaleString()} Reviews)
+              ({activeProduct.reviewCount.toLocaleString()} Reviews)
             </Text>
           </View>
 
@@ -204,7 +219,7 @@ const ProductDetailsScreen = ({
               style={[styles.description, { color: colors.onSurfaceVariant }]}
               numberOfLines={isDescriptionExpanded ? undefined : 3}
             >
-              {product.description}
+              {activeProduct.description}
             </Text>
             <Pressable onPress={() => setIsDescriptionExpanded(!isDescriptionExpanded)}>
               <Text style={[styles.readMore, { color: colors.primary }]}>
@@ -287,7 +302,7 @@ const ProductDetailsScreen = ({
         <View style={styles.relatedSection}>
           <Text style={[styles.relatedTitle, { color: colors.onSurface }]}>Related Products</Text>
           <FlatList
-            data={RELATED_PRODUCTS}
+            data={relatedProducts}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
@@ -321,9 +336,14 @@ const ProductDetailsScreen = ({
           <Button
             label="Add to Cart"
             onPress={() => {
-              setToastMessage(`${product?.title || 'Item'} added to cart!`);
+              setToastMessage(`${activeProduct.title} added to cart!`);
               setToastVisible(true);
-              onAddToCart?.();
+              onAddToCart?.({
+                id: activeProduct.id,
+                title: activeProduct.title,
+                price: activeProduct.price,
+                imageUri: activeProduct.images[0] || '',
+              });
             }}
             variant="outline"
             colors={colors}
@@ -333,7 +353,7 @@ const ProductDetailsScreen = ({
           <Button
             label="Buy Now"
             onPress={() => {
-              setToastMessage(`Proceeding to checkout with ${quantity}x ${product?.title || 'item'}!`);
+              setToastMessage(`Proceeding to checkout with ${quantity}x ${activeProduct.title}!`);
               setToastVisible(true);
               onBuyNow?.();
             }}

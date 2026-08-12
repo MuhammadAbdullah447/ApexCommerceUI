@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, TextInput, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  Keyboard,
+  TouchableWithoutFeedback,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { RouteProp } from '@react-navigation/native';
@@ -14,7 +24,13 @@ import { COLORS, SPACING, RADIUS, ColorScheme } from '../constants/theme';
 import FilterBottomSheet, { FilterOptions } from '../components/FilterBottomSheet';
 import { useCart } from '../context/CartContext';
 import Toast from '../components/Toast';
-
+import {
+  useProducts,
+  useCategories,
+  useCategoryProducts,
+  useSearchProducts,
+} from '../hooks/useProducts';
+import { Product } from '../types/product';
 
 interface ProductListScreenProps {
   onProductPress: (productId: string) => void;
@@ -24,7 +40,6 @@ interface ProductListScreenProps {
   route?: RouteProp<AppTabParamList, 'Categories'>;
   navigation?: BottomTabNavigationProp<AppTabParamList, 'Categories'>;
 }
-
 
 const FILTERS = ['All Products', 'Sneakers', 'Running', 'Lifestyle'];
 
@@ -97,7 +112,6 @@ export const PRODUCTS = [
   },
 ];
 
-
 type SortOption = 'default' | 'priceLowToHigh' | 'priceHighToLow';
 
 const ProductListScreen = ({
@@ -111,6 +125,7 @@ const ProductListScreen = ({
   const [searchText, setSearchText] = useState('');
   const searchInputRef = useRef<TextInput>(null);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [limit, setLimit] = useState(20);
   const [filters, setFilters] = useState<FilterOptions>({
     category: 'All Products',
     priceSort: 'none',
@@ -121,10 +136,27 @@ const ProductListScreen = ({
   const { addToCart } = useCart();
   const [toastMessage, setToastMessage] = useState('');
 
+  const categoriesQuery = useCategories();
+  const productsQuery = useProducts({ limit, skip: 0 });
+
+  const selectedCategorySlug =
+    filters.category !== 'All Products' && filters.category !== 'All'
+      ? filters.category.toLowerCase().replace(/ /g, '-')
+      : null;
+
+  const categoryProductsQuery = useCategoryProducts(selectedCategorySlug, { limit });
+  const searchQuery = useSearchProducts(searchText);
+
+  const displayCategoryFilters = [
+    'All Products',
+    ...(categoriesQuery.data?.map((c) => c.name) || ['Beauty', 'Fragrances', 'Furniture', 'Groceries', 'Laptops']),
+  ];
+
   useEffect(() => {
     if (route?.params?.reset) {
       setSearchText('');
       setCollectionFilter(undefined);
+      setLimit(20);
       setFilters({
         category: 'All Products',
         priceSort: 'none',
@@ -139,15 +171,21 @@ const ProductListScreen = ({
     setCollectionFilter(route?.params?.collection);
   }, [route?.params?.collection]);
 
-  const derivedProducts = [...PRODUCTS]
+  let rawProducts: Product[] = productsQuery.data?.mappedProducts || [];
+  if (searchText.trim() && searchQuery.data?.mappedProducts) {
+    rawProducts = searchQuery.data.mappedProducts;
+  } else if (selectedCategorySlug && categoryProductsQuery.data?.mappedProducts) {
+    rawProducts = categoryProductsQuery.data.mappedProducts;
+  }
+
+  const derivedProducts = rawProducts
     .filter((product) => {
-      if (collectionFilter && product.collection !== collectionFilter) {
-        return false;
-      }
       const matchesCategory =
-        filters.category === 'All Products' || product.category === filters.category;
+        filters.category === 'All Products' ||
+        filters.category === 'All' ||
+        product.category.toLowerCase().includes(filters.category.toLowerCase());
       const matchesSearch =
-        product.title.toLowerCase().includes(searchText.toLowerCase());
+        !searchText.trim() || product.title.toLowerCase().includes(searchText.toLowerCase());
       const matchesStock = !filters.inStockOnly || product.inStock;
       const matchesRating = product.rating >= filters.minRating;
 
@@ -158,6 +196,17 @@ const ProductListScreen = ({
       if (filters.priceSort === 'highToLow') return b.price - a.price;
       return 0;
     });
+
+  const isLoading =
+    productsQuery.isPending ||
+    (Boolean(selectedCategorySlug) && categoryProductsQuery.isPending) ||
+    (Boolean(searchText.trim()) && searchQuery.isPending);
+
+  const loadMore = () => {
+    if (!isLoading && limit < 100) {
+      setLimit((prev) => prev + 20);
+    }
+  };
 
   const cycleSortOption = () => {
     setFilters((prev) => {
@@ -210,7 +259,7 @@ const ProductListScreen = ({
             />
 
             <ScrollableFilterRow
-              filters={FILTERS}
+              filters={displayCategoryFilters}
               selectedFilter={filters.category}
               onSelectFilter={(cat) => {
                 setFilters((prev) => ({ ...prev, category: cat }));
@@ -225,6 +274,11 @@ const ProductListScreen = ({
                 <Text style={[styles.sortButtonText, { color: colors.primary }]}>{sortLabel}</Text>
               </Pressable>
             </View>
+            {isLoading && (
+              <View style={{ paddingVertical: SPACING.md, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
