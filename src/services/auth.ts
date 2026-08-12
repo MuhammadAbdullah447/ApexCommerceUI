@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { asyncStore } from './storage/asyncStore';
 import { UserProfile } from '../types/auth';
 export type { UserProfile };
-
 
 interface MockUser {
   name: string;
@@ -15,17 +14,12 @@ let isLoaded = false;
 
 const loadUsers = async () => {
   if (isLoaded) return;
-  try {
-    const jsonValue = await AsyncStorage.getItem(STORAGE_KEY);
-    if (jsonValue != null) {
-      const users: MockUser[] = JSON.parse(jsonValue);
-      localMockUsers.length = 0;
-      localMockUsers.push(...users);
-    }
-    isLoaded = true;
-  } catch (e) {
-    console.warn('Failed to load mock users', e);
+  const users = await asyncStore.getItem<MockUser[]>(STORAGE_KEY);
+  if (users) {
+    localMockUsers.length = 0;
+    localMockUsers.push(...users);
   }
+  isLoaded = true;
 };
 
 export const registerMockUser = async (user: MockUser) => {
@@ -41,11 +35,7 @@ export const registerMockUser = async (user: MockUser) => {
       email: trimmedEmail,
       password: trimmedPassword,
     });
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(localMockUsers));
-    } catch (e) {
-      console.warn('Failed to save mock users', e);
-    }
+    await asyncStore.setItem(STORAGE_KEY, localMockUsers);
   }
 };
 

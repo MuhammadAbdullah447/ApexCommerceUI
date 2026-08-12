@@ -31,6 +31,8 @@ import {
   useSearchProducts,
 } from '../hooks/useProducts';
 import { Product } from '../types/product';
+import { useDebounce } from '../hooks/useDebounce';
+import { getApiErrorMessage } from '../utils/errorUtils';
 
 interface ProductListScreenProps {
   onProductPress: (productId: string) => void;
@@ -123,6 +125,7 @@ const ProductListScreen = ({
   navigation,
 }: ProductListScreenProps) => {
   const [searchText, setSearchText] = useState('');
+  const debouncedSearchText = useDebounce(searchText, 400);
   const searchInputRef = useRef<TextInput>(null);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [limit, setLimit] = useState(20);
@@ -145,12 +148,16 @@ const ProductListScreen = ({
       : null;
 
   const categoryProductsQuery = useCategoryProducts(selectedCategorySlug, { limit });
-  const searchQuery = useSearchProducts(searchText);
+  const searchQuery = useSearchProducts(debouncedSearchText);
 
   const displayCategoryFilters = [
     'All Products',
     ...(categoriesQuery.data?.map((c) => c.name) || ['Beauty', 'Fragrances', 'Furniture', 'Groceries', 'Laptops']),
   ];
+
+  useEffect(() => {
+    setLimit(20);
+  }, [filters.category, debouncedSearchText]);
 
   useEffect(() => {
     if (route?.params?.reset) {
@@ -172,7 +179,7 @@ const ProductListScreen = ({
   }, [route?.params?.collection]);
 
   let rawProducts: Product[] = productsQuery.data?.mappedProducts || [];
-  if (searchText.trim() && searchQuery.data?.mappedProducts) {
+  if (debouncedSearchText.trim() && searchQuery.data?.mappedProducts) {
     rawProducts = searchQuery.data.mappedProducts;
   } else if (selectedCategorySlug && categoryProductsQuery.data?.mappedProducts) {
     rawProducts = categoryProductsQuery.data.mappedProducts;
@@ -185,7 +192,7 @@ const ProductListScreen = ({
         filters.category === 'All' ||
         product.category.toLowerCase().includes(filters.category.toLowerCase());
       const matchesSearch =
-        !searchText.trim() || product.title.toLowerCase().includes(searchText.toLowerCase());
+        !debouncedSearchText.trim() || product.title.toLowerCase().includes(debouncedSearchText.toLowerCase());
       const matchesStock = !filters.inStockOnly || product.inStock;
       const matchesRating = product.rating >= filters.minRating;
 
@@ -200,10 +207,20 @@ const ProductListScreen = ({
   const isLoading =
     productsQuery.isPending ||
     (Boolean(selectedCategorySlug) && categoryProductsQuery.isPending) ||
-    (Boolean(searchText.trim()) && searchQuery.isPending);
+    (Boolean(debouncedSearchText.trim()) && searchQuery.isPending);
+
+  const isFetchingMore =
+    (productsQuery.isFetching && !productsQuery.isPending) ||
+    (categoryProductsQuery.isFetching && !categoryProductsQuery.isPending);
+
+  const hasError =
+    productsQuery.isError || categoryProductsQuery.isError || searchQuery.isError;
+  const errorMessage = hasError
+    ? getApiErrorMessage(productsQuery.error || categoryProductsQuery.error || searchQuery.error)
+    : null;
 
   const loadMore = () => {
-    if (!isLoading && limit < 100) {
+    if (!isLoading && !isFetchingMore && limit < 100) {
       setLimit((prev) => prev + 20);
     }
   };
@@ -274,6 +291,27 @@ const ProductListScreen = ({
                 <Text style={[styles.sortButtonText, { color: colors.primary }]}>{sortLabel}</Text>
               </Pressable>
             </View>
+            {hasError && errorMessage && (
+              <View style={[styles.emptySearchContainer, { paddingVertical: SPACING.md }]}>
+                <View style={[styles.emptyIconWrapper, { backgroundColor: colors.surfaceContainerLow }]}>
+                  <Icon name="error-outline" size={36} color={colors.error} />
+                </View>
+                <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>Unable to load products</Text>
+                <Text style={[styles.emptySubtitle, { color: colors.onSurfaceVariant }]}>
+                  {errorMessage}
+                </Text>
+                <Pressable
+                  style={[styles.clearSearchButton, { borderColor: colors.primary }]}
+                  onPress={() => {
+                    productsQuery.refetch();
+                    categoryProductsQuery.refetch();
+                    searchQuery.refetch();
+                  }}
+                >
+                  <Text style={[styles.clearSearchText, { color: colors.primary }]}>Retry</Text>
+                </Pressable>
+              </View>
+            )}
             {isLoading && (
               <View style={{ paddingVertical: SPACING.md, alignItems: 'center' }}>
                 <ActivityIndicator size="small" color={colors.primary} />
@@ -281,32 +319,43 @@ const ProductListScreen = ({
             )}
           </View>
         }
-        ListEmptyComponent={
-          <View style={styles.emptySearchContainer}>
-            <View style={[styles.emptyIconWrapper, { backgroundColor: colors.surfaceContainerLow }]}>
-              <Icon name="search-off" size={48} color={colors.primary} />
+        ListFooterComponent={
+          isFetchingMore ? (
+            <View style={{ paddingVertical: SPACING.md, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>No Products Found</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.onSurfaceVariant }]}>
-              We couldn't find any products matching your search term. Try checking your spelling or resetting filters.
-            </Text>
-            <Pressable
-              style={[styles.clearSearchButton, { borderColor: colors.primary }]}
-              onPress={() => {
-                setSearchText('');
-                setCollectionFilter(undefined);
-                setFilters({
-                  category: 'All Products',
-                  priceSort: 'none',
-                  inStockOnly: false,
-                  minRating: 0,
-                });
-                searchInputRef.current?.focus();
-              }}
-            >
-              <Text style={[styles.clearSearchText, { color: colors.primary }]}>Clear Search & Filters</Text>
-            </Pressable>
-          </View>
+          ) : null
+        }
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListEmptyComponent={
+          !isLoading && !hasError ? (
+            <View style={styles.emptySearchContainer}>
+              <View style={[styles.emptyIconWrapper, { backgroundColor: colors.surfaceContainerLow }]}>
+                <Icon name="search-off" size={48} color={colors.primary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>No Products Found</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.onSurfaceVariant }]}>
+                We couldn't find any products matching your search term. Try checking your spelling or resetting filters.
+              </Text>
+              <Pressable
+                style={[styles.clearSearchButton, { borderColor: colors.primary }]}
+                onPress={() => {
+                  setSearchText('');
+                  setCollectionFilter(undefined);
+                  setFilters({
+                    category: 'All Products',
+                    priceSort: 'none',
+                    inStockOnly: false,
+                    minRating: 0,
+                  });
+                  searchInputRef.current?.focus();
+                }}
+              >
+                <Text style={[styles.clearSearchText, { color: colors.primary }]}>Clear Search & Filters</Text>
+              </Pressable>
+            </View>
+          ) : null
         }
         
         renderItem={({ item }) => (

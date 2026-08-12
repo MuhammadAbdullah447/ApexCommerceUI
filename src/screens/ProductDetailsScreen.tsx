@@ -18,6 +18,7 @@ import { COLORS, SPACING, RADIUS, ColorScheme } from '../constants/theme';
 import Toast from '../components/Toast';
 import BottomSheet from '../components/BottomSheet';
 import { useProductDetails, useProducts } from '../hooks/useProducts';
+import { getApiErrorMessage } from '../utils/errorUtils';
 
 interface ProductDetails {
   id: string;
@@ -146,6 +147,19 @@ const ProductDetailsScreen = ({
           {productQuery.isPending ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : productQuery.isError ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.md }}>
+              <Icon name="error-outline" size={40} color={colors.error} />
+              <Text style={{ color: colors.onSurface, marginTop: SPACING.xs, textAlign: 'center' }}>
+                {getApiErrorMessage(productQuery.error)}
+              </Text>
+              <Pressable
+                style={{ marginTop: SPACING.sm, paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: colors.primary }}
+                onPress={() => productQuery.refetch()}
+              >
+                <Text style={{ color: colors.primary }}>Retry</Text>
+              </Pressable>
             </View>
           ) : (
             <>

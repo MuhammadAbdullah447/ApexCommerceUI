@@ -44,4 +44,19 @@ export const productsApi = {
     });
     return response.data;
   },
+
+  addProduct: async (productData: Partial<ApiProduct>): Promise<ApiProduct> => {
+    const response = await apiClient.post<ApiProduct>('/products/add', productData);
+    return response.data;
+  },
+
+  updateProduct: async (id: string | number, productData: Partial<ApiProduct>): Promise<ApiProduct> => {
+    const response = await apiClient.put<ApiProduct>(`/products/${id}`, productData);
+    return response.data;
+  },
+
+  deleteProduct: async (id: string | number): Promise<{ id: number; isDeleted: boolean; deletedOn: string }> => {
+    const response = await apiClient.delete<{ id: number; isDeleted: boolean; deletedOn: string }>(`/products/${id}`);
+    return response.data;
+  },
 };

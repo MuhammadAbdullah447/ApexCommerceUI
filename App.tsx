@@ -10,11 +10,26 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { getColors } from './src/constants/theme';
 import { UserProfile } from './src/services/auth';
 
+import axios from 'axios';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) => {
+        if (axios.isAxiosError(error) && error.response) {
+          const status = error.response.status;
+          if (status >= 400 && status < 500) {
+            return false;
+          }
+        }
+        return failureCount < 2;
+      },
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });

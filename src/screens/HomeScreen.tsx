@@ -31,6 +31,8 @@ import {
   useSearchProducts,
 } from '../hooks/useProducts';
 import { Product } from '../types/product';
+import { useDebounce } from '../hooks/useDebounce';
+import { getApiErrorMessage } from '../utils/errorUtils';
 
 interface HomeScreenProps {
   onProductPress: (productId: string) => void;
@@ -134,6 +136,7 @@ const HomeScreen = ({
   colors = COLORS,
 }: HomeScreenProps) => {
   const [searchText, setSearchText] = useState('');
+  const debouncedSearchText = useDebounce(searchText, 400);
   const searchInputRef = useRef<TextInput>(null);
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [filters, setFilters] = useState<FilterOptions>({
@@ -148,12 +151,12 @@ const HomeScreen = ({
   const categoryProductsQuery = useCategoryProducts(
     filters.category !== 'All' ? filters.category.toLowerCase().replace(/ /g, '-') : null
   );
-  const searchQuery = useSearchProducts(searchText);
+  const searchQuery = useSearchProducts(debouncedSearchText);
 
   const displayCategories = ['All', ...(categoriesQuery.data?.slice(0, 6).map((c) => c.name) || ['Beauty', 'Fragrances', 'Furniture', 'Groceries', 'Laptops'])];
 
   let rawProducts: Product[] = productsQuery.data?.mappedProducts || [];
-  if (searchText.trim() && searchQuery.data?.mappedProducts) {
+  if (debouncedSearchText.trim() && searchQuery.data?.mappedProducts) {
     rawProducts = searchQuery.data.mappedProducts;
   } else if (filters.category !== 'All' && categoryProductsQuery.data?.mappedProducts) {
     rawProducts = categoryProductsQuery.data.mappedProducts;
@@ -164,7 +167,7 @@ const HomeScreen = ({
       filters.category === 'All' ||
       product.category.toLowerCase().includes(filters.category.toLowerCase());
     const matchesSearch =
-      !searchText.trim() || product.title.toLowerCase().includes(searchText.toLowerCase());
+      !debouncedSearchText.trim() || product.title.toLowerCase().includes(debouncedSearchText.toLowerCase());
     const matchesStock = !filters.inStockOnly || product.inStock;
     const matchesRating = product.rating >= filters.minRating;
     return matchesCategory && matchesSearch && matchesStock && matchesRating;
@@ -183,7 +186,13 @@ const HomeScreen = ({
   const isLoading =
     productsQuery.isPending ||
     (filters.category !== 'All' && categoryProductsQuery.isPending) ||
-    (Boolean(searchText.trim()) && searchQuery.isPending);
+    (Boolean(debouncedSearchText.trim()) && searchQuery.isPending);
+
+  const hasError =
+    productsQuery.isError || categoryProductsQuery.isError || searchQuery.isError;
+  const errorMessage = hasError
+    ? getApiErrorMessage(productsQuery.error || categoryProductsQuery.error || searchQuery.error)
+    : null;
 
   const isFilterActive =
     filters.priceSort !== 'none' || filters.inStockOnly || filters.minRating > 0;
@@ -214,6 +223,28 @@ const HomeScreen = ({
           isFilterActive={isFilterActive}
           colors={colors}
         />
+
+        {hasError && errorMessage ? (
+          <View style={[styles.emptySearchContainer, { paddingVertical: SPACING.lg }]}>
+            <View style={[styles.emptyIconWrapper, { backgroundColor: colors.errorContainer || colors.surfaceContainerLow }]}>
+              <Icon name="error-outline" size={40} color={colors.error} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>Unable to load products</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.onSurfaceVariant }]}>
+              {errorMessage}
+            </Text>
+            <Pressable
+              style={[styles.clearSearchButton, { borderColor: colors.primary }]}
+              onPress={() => {
+                productsQuery.refetch();
+                categoryProductsQuery.refetch();
+                searchQuery.refetch();
+              }}
+            >
+              <Text style={[styles.clearSearchText, { color: colors.primary }]}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {searchText && derivedNewArrivals.length === 0 && derivedPopularProducts.length === 0 ? (
           <View style={styles.emptySearchContainer}>
