@@ -14,6 +14,7 @@ import { NEW_ARRIVALS, POPULAR_PRODUCTS } from '../screens/HomeScreen';
 import { PRODUCTS } from '../screens/ProductListScreen';
 import { UserProfile } from '../services/auth';
 import { useCart } from '../context/CartContext';
+import { deleteSecureItem } from '../services/storage/secureStore';
 
 const ALL_PRODUCTS = [...NEW_ARRIVALS, ...POPULAR_PRODUCTS, ...PRODUCTS];
 
@@ -89,7 +90,8 @@ const RootNavigator = ({
             onProductPress={(id) => props.navigation.navigate('ProductDetails', { productId: id })}
             isDarkMode={isDarkMode}
             onToggleDarkMode={onToggleDarkMode}
-            onLogoutPress={() => {
+            onLogoutPress={async () => {
+              await deleteSecureItem('auth_access_token');
               setUserProfile(null);
               props.navigation.replace('Login');
             }}

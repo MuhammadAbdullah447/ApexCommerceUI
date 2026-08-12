@@ -1,15 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserProfile } from '../types/auth';
+export type { UserProfile };
 
-export interface UserProfile {
-  id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  gender: string;
-  image: string;
-  token: string;
-}
 
 interface MockUser {
   name: string;

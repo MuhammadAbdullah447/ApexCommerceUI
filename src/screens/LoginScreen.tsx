@@ -22,7 +22,10 @@ import Button from '../components/Button';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY, ColorScheme } from '../constants/theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { loginWithDummyJSON, UserProfile } from '../services/auth';
+import { UserProfile } from '../types/auth';
+import { useLoginMutation } from '../hooks/useAuthMutations';
+import { getAuthErrorMessage } from '../services/api/authApi';
+import { saveSecureItem } from '../services/storage/secureStore';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -40,8 +43,9 @@ const LoginScreen = ({
   colors = COLORS,
 }: LoginScreenProps) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const loginMutation = useLoginMutation();
 
   const {
     control,
@@ -55,17 +59,35 @@ const LoginScreen = ({
     },
   });
 
-  const onSubmit = async (data: LoginFormValues) => {
-    setLoading(true);
+  const onSubmit = (data: LoginFormValues) => {
+    if (loginMutation.isPending) return;
     setApiError(null);
-    try {
-      const user = await loginWithDummyJSON(data.username, data.password);
-      onLoginSuccess(user);
-    } catch (err: any) {
-      setApiError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate(
+      {
+        username: data.username,
+        password: data.password,
+      },
+      {
+        onSuccess: async (responseData) => {
+          await saveSecureItem('auth_access_token', responseData.accessToken);
+          const user: UserProfile = {
+            id: responseData.id,
+            username: responseData.username,
+            email: responseData.email,
+            firstName: responseData.firstName,
+            lastName: responseData.lastName,
+            gender: responseData.gender,
+            image: responseData.image,
+            accessToken: responseData.accessToken,
+            token: responseData.accessToken,
+          };
+          onLoginSuccess(user);
+        },
+        onError: (error) => {
+          setApiError(getAuthErrorMessage(error));
+        },
+      }
+    );
   };
 
   return (
@@ -191,7 +213,7 @@ const LoginScreen = ({
                 icon={<Icon name="arrow-forward" size={20} color={colors.onPrimary} />}
                 iconPosition="right"
                 colors={colors}
-                loading={loading}
+                loading={loginMutation.isPending}
               />
 
               {/* Divider */}
